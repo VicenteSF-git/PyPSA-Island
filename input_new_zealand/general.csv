@@ -2,3 +2,4 @@ parameter,value,unit,enabled
 slack_cost_per_mwh,100000.0,USD/MWh,True
 hydro_capacity_factor,0.45,fraction,True
 hydro_inflow_year,2021.0,year,True
+vre_time_zone,Pacific/Auckland,IANA timezone,True

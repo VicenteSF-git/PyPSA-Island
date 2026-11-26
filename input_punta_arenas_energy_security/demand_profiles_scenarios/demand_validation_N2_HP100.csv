@@ -1,0 +1,2 @@
+demand_type,zone,source,rows,annual_total_mwh,monthly_total_mwh_sum,mean_mw,min_mw,max_mw
+electricity,punta_arenas_centro,csv,8760,1205427.9577883002,1205427.9577883002,137.60593125437217,79.6457699400368,214.605342960314

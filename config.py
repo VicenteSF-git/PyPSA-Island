@@ -275,9 +275,7 @@ def load_nodes_from_csv(
         df["enabled"] = True
     else:
         # Accept TRUE/FALSE, 1/0, yes/no consistently with the other input tables.
-        df["enabled"] = df["enabled"].map(
-            lambda value: _as_bool(value, default=True, context=f"{csv_file}.enabled")
-        )
+        df["enabled"] = df["enabled"].map(lambda value: _as_bool(value, default=True, context=f"{csv_file}.enabled"))
 
     if "lat" not in df.columns:
         df["lat"] = np.nan
@@ -741,7 +739,6 @@ def load_heat_assets_from_csv(
     return df.reset_index(drop=True)
 
 
-
 def _ptx_product_key(value, default: str = "") -> str:
     """Normalize PtX product names to internal keys."""
     key = _normalize_label(value, default=default)
@@ -1062,8 +1059,7 @@ def _select_cost_rows_for_year(costs_df: pd.DataFrame, year: int) -> pd.DataFram
         duplicates = table[table["cost_key"].duplicated(keep=False)]
         if not duplicates.empty:
             raise ValueError(
-                "costs.csv contains duplicate static cost_key rows: "
-                f"{sorted(duplicates['cost_key'].unique().tolist())}"
+                f"costs.csv contains duplicate static cost_key rows: {sorted(duplicates['cost_key'].unique().tolist())}"
             )
         return table.copy()
 
@@ -1183,7 +1179,9 @@ def _project_costs_for_year(costs_df: Optional[pd.DataFrame], year: Optional[int
 
             capex = _require_finite_float(capex, f"costs.csv[{row.get('cost_key')}].capex")
             r = _require_finite_float(row.get("discount_rate"), f"costs.csv[{row.get('cost_key')}].discount_rate")
-            n_years = _require_finite_float(row.get("lifetime_years"), f"costs.csv[{row.get('cost_key')}].lifetime_years")
+            n_years = _require_finite_float(
+                row.get("lifetime_years"), f"costs.csv[{row.get('cost_key')}].lifetime_years"
+            )
             fom = _require_finite_float(row.get("fom_fraction"), f"costs.csv[{row.get('cost_key')}].fom_fraction")
             if capex < 0 or r < 0 or n_years <= 0 or fom < 0:
                 raise ValueError(
@@ -1290,8 +1288,7 @@ def _apply_cost_defaults(
     duplicates = cost_table[cost_table["_cost_key"].duplicated(keep=False)]
     if not duplicates.empty:
         raise ValueError(
-            "Projected costs contain duplicate cost_key rows: "
-            f"{sorted(duplicates['_cost_key'].unique().tolist())}"
+            f"Projected costs contain duplicate cost_key rows: {sorted(duplicates['_cost_key'].unique().tolist())}"
         )
     cost_lookup = cost_table.set_index("_cost_key", drop=False)
 
@@ -1432,8 +1429,7 @@ def _require_row_or_technology_attribute(
                 )
             if len(usable) > 1:
                 raise ValueError(
-                    f"Ambiguous costs.csv lookup for cost_key='{lookup_key}', "
-                    f"column='{resolved_cost_column}'."
+                    f"Ambiguous costs.csv lookup for cost_key='{lookup_key}', column='{resolved_cost_column}'."
                 )
 
         if "technology" in costs_df.columns and resolved_cost_column in costs_df.columns:
@@ -1722,9 +1718,7 @@ def validate_inputs(
                 required_heat_cost_keys = set(heat_assets_df["cost_key"].map(_normalize_label))
                 missing_heat_cost_keys = sorted(required_heat_cost_keys - available_cost_keys)
                 if missing_heat_cost_keys:
-                    errors.append(
-                        f"Costs CSV is missing enabled heat-asset cost_key rows: {missing_heat_cost_keys}"
-                    )
+                    errors.append(f"Costs CSV is missing enabled heat-asset cost_key rows: {missing_heat_cost_keys}")
 
                 fuel_carriers = {
                     _normalize_label(value)
@@ -1733,9 +1727,7 @@ def validate_inputs(
                 }
                 missing_fuel_costs = sorted(fuel_carriers - available_cost_keys)
                 if missing_fuel_costs:
-                    errors.append(
-                        f"Costs CSV is missing heat input-carrier/fuel rows: {missing_fuel_costs}"
-                    )
+                    errors.append(f"Costs CSV is missing heat input-carrier/fuel rows: {missing_fuel_costs}")
 
     # Report
     valid = len(errors) == 0
@@ -2067,6 +2059,84 @@ def map_weather_year(df_weather: pd.DataFrame, target_year: int = 2030) -> pd.Da
     return df_mapped
 
 
+def align_vre_profiles_to_local_time(
+    df_weather: pd.DataFrame,
+    utc_offset_hours: float,
+) -> pd.DataFrame:
+    """Align UTC cutout profiles with *local-clock* model snapshots.
+
+    ``utc_offset_hours`` is local time minus UTC time (e.g. -3 for Punta
+    Arenas). PyPSA snapshots and electricity demand remain timezone-naive and
+    are assumed to represent local clock time.
+
+    Input weather data must already have been mapped to the model year by
+    ``map_weather_year``. Reorder values rather than relabel timestamps:
+    local 12:00 at UTC-3 uses the weather value at UTC 15:00.
+
+    The cutout covers UTC Jan 1 00:00 through Dec 31 23:00, so the hours
+    required outside that calendar year are unavailable. We use a cyclic
+    boundary approximation for just abs(offset) hours. For exact year-edge
+    values the ERA5 cutout needs additional hours from the adjacent year.
+
+    A constant offset is appropriate only in locations with no DST changes
+    during the modelled year. For DST locations use a DST-aware alignment.
+    """
+    offset = _require_finite_float(utc_offset_hours, "general.csv[vre_utc_offset_hours]")
+    if not offset.is_integer() or not -12 <= offset <= 14:
+        raise ValueError(
+            f"general.csv[vre_utc_offset_hours] must be an integer from -12 to +14 for hourly modelling, got {offset}."
+        )
+
+    offset = int(offset)
+    aligned = df_weather.copy()
+    if offset:
+        # np.roll with -3: local hour 00 receives UTC hour 03.
+        aligned.iloc[:, :] = np.roll(df_weather.to_numpy(), shift=offset, axis=0)
+    return aligned
+
+
+def align_vre_profiles_to_timezone(
+    df_weather: pd.DataFrame,
+    time_zone: str,
+) -> pd.DataFrame:
+    """Convert hourly UTC renewable profiles to timezone-naive local clock hours.
+
+    Local DST changes produce one repeated and one missing clock hour per year.
+    Average repeated hours and interpolate missing hours to preserve the model's
+    fixed 8760/8784-hour local-clock snapshot index.
+    """
+    index = df_weather.index
+    if not isinstance(index, pd.DatetimeIndex) or index.tz is not None:
+        raise ValueError("VRE profiles must have timezone-naive UTC timestamps.")
+    if not index.is_monotonic_increasing or not index.is_unique:
+        raise ValueError("VRE timestamps must be sorted and unique.")
+    if len(index) < 25 or not (index[1:] - index[:-1] == pd.Timedelta(hours=1)).all():
+        raise ValueError("VRE profiles must be continuous hourly data.")
+
+    zone = str(time_zone).strip()
+    if not zone:
+        raise ValueError("general.csv[vre_time_zone] must not be empty.")
+
+    # Use a cyclic one-day edge approximation when the cutout lacks adjacent years.
+    before = df_weather.iloc[-24:].copy()
+    before.index = pd.date_range(index[0] - pd.Timedelta(hours=24), periods=24, freq="h")
+    after = df_weather.iloc[:24].copy()
+    after.index = pd.date_range(index[-1] + pd.Timedelta(hours=1), periods=24, freq="h")
+    extended = pd.concat([before, df_weather, after])
+
+    try:
+        extended.index = extended.index.tz_localize("UTC").tz_convert(zone).tz_localize(None)
+    except (KeyError, ValueError) as exc:
+        raise ValueError(f"Invalid VRE time zone: {zone!r}") from exc
+
+    local = extended.groupby(level=0, sort=True).mean().reindex(index)
+    if local.isna().any().any():
+        local = local.interpolate(method="time", limit_direction="both")
+    if local.isna().any().any():
+        raise ValueError("VRE timezone conversion left missing local-clock hours.")
+    return local
+
+
 def _safe_float(value, default: float) -> float:
     return default if pd.isna(value) else float(value)
 
@@ -2116,9 +2186,7 @@ def _generator_availability_factor(row: pd.Series, gen_id: str) -> float:
         f"Generator {gen_id}.availability_factor",
     )
     if not 0.0 <= value <= 1.0:
-        raise ValueError(
-            f"Generator {gen_id}.availability_factor must be between 0 and 1. Got {value}."
-        )
+        raise ValueError(f"Generator {gen_id}.availability_factor must be between 0 and 1. Got {value}.")
     return float(value)
 
 
@@ -2412,9 +2480,7 @@ def _add_csv_driven_hydro_asset(
 
     if model_type == "inflow_generator":
         base_profile = (
-            np.clip(profile.to_numpy() / float(p_nom), 0.0, 1.0)
-            if p_nom > 0
-            else np.zeros(len(snapshots), dtype=float)
+            np.clip(profile.to_numpy() / float(p_nom), 0.0, 1.0) if p_nom > 0 else np.zeros(len(snapshots), dtype=float)
         )
         attrs["p_max_pu"] = np.clip(base_profile * availability_factor, 0.0, 1.0)
     elif model_type == "availability_generator":
@@ -2460,6 +2526,7 @@ def build_case_network(
     slack_cost_per_mwh: Optional[float] = None,
     csv_interlinks: str = DEFAULT_PATHS["interlinks_csv"],
     csv_capacity: str = DEFAULT_PATHS["capacity_csv"],
+    csv_fuel_limits: Optional[str] = None,
     csv_storage: str = DEFAULT_PATHS["storage_csv"],
     csv_hydro_assets: str = DEFAULT_PATHS["hydro_assets_csv"],
     csv_hydro_inflows: str = DEFAULT_PATHS["hydro_inflows_csv"],
@@ -2545,9 +2612,7 @@ def build_case_network(
     if service_demand_present:
         carriers.update(service_loads.keys())
         if heat_assets_df is None or heat_assets_df.empty:
-            raise ValueError(
-                "End-use service demand is present but heat_assets.csv is missing or has no enabled rows."
-            )
+            raise ValueError("End-use service demand is present but heat_assets.csv is missing or has no enabled rows.")
         carriers.update([c for c in heat_assets_df["technology"].dropna().unique().tolist() if c])
         carriers.update([c for c in heat_assets_df["input_carrier"].dropna().unique().tolist() if c])
     if enable_hydrogen:
@@ -2776,16 +2841,16 @@ def build_case_network(
 
                 if capacity_basis == "output":
                     installed_input = installed_output / efficiency
-                    explicit_max_input = explicit_max_output / efficiency if np.isfinite(explicit_max_output) else np.nan
+                    explicit_max_input = (
+                        explicit_max_output / efficiency if np.isfinite(explicit_max_output) else np.nan
+                    )
                 else:
                     installed_input = installed_output
                     explicit_max_input = explicit_max_output
 
                 previous_cap = None
                 if previous_year_network is not None and asset_id in previous_year_network.links.index:
-                    previous_cap = _previous_nominal_capacity(
-                        previous_year_network, "links", asset_id, installed_input
-                    )
+                    previous_cap = _previous_nominal_capacity(previous_year_network, "links", asset_id, installed_input)
 
                 if expansion_allowed:
                     p_nom_min = max(0.0, installed_input, previous_cap or 0.0)
@@ -3062,9 +3127,7 @@ def build_case_network(
                         "hydro_capacity_factor in general.csv, or an explicit hydro_assets.csv definition."
                     )
                 if not 0.0 <= hydro_cf <= 1.0:
-                    raise ValueError(
-                        f"Generator {gen_id}.capacity_factor must be between 0 and 1. Got {hydro_cf}."
-                    )
+                    raise ValueError(f"Generator {gen_id}.capacity_factor must be between 0 and 1. Got {hydro_cf}.")
 
             is_available, expansion_allowed, commissioning_status, commissioning_year = (
                 _resolve_generator_commissioning(row, model_year)
@@ -4310,6 +4373,11 @@ def build_case_network(
                     )
         n._ptx_monthly_export_requirements = monthly_requirements
 
+    fuel_limits = load_fuel_limits_for_year(
+        csv_capacity, model_year, csv_fuel_limits=csv_fuel_limits
+    )
+    annotate_fuel_limits(n, fuel_limits)
+
     if co2_cap_tons is not None:
         n.add(
             "GlobalConstraint",
@@ -4861,7 +4929,12 @@ def add_investment_support_constraint(n, snapshots) -> None:
     specs = [
         ("Generator", n.generators, "Generator-p_nom", set(getattr(n, "_investment_support_generator_carriers", ()))),
         ("Link", n.links, "Link-p_nom", set(getattr(n, "_investment_support_link_carriers", ()))),
-        ("StorageUnit", n.storage_units, "StorageUnit-p_nom", set(getattr(n, "_investment_support_storage_carriers", ()))),
+        (
+            "StorageUnit",
+            n.storage_units,
+            "StorageUnit-p_nom",
+            set(getattr(n, "_investment_support_storage_carriers", ())),
+        ),
     ]
 
     for component, table, variable_name, eligible_carriers in specs:
@@ -4873,10 +4946,7 @@ def add_investment_support_constraint(n, snapshots) -> None:
             continue
 
         normalized_carrier = table["carrier"].map(_normalize_label)
-        mask = (
-            table["p_nom_extendable"].fillna(False).astype(bool)
-            & normalized_carrier.isin(eligible_carriers)
-        )
+        mask = table["p_nom_extendable"].fillna(False).astype(bool) & normalized_carrier.isin(eligible_carriers)
         asset_ids = table.index[mask].astype(str).tolist()
         if not asset_ids:
             continue
@@ -4891,9 +4961,7 @@ def add_investment_support_constraint(n, snapshots) -> None:
                 raise ValueError(f"Eligible {component} {asset_id} has negative capital_cost={capital_cost}.")
             if capital_cost == 0.0:
                 continue
-            support_terms.append(
-                float(fraction) * float(capital_cost) * (p_nom - float(p_nom_min))
-            )
+            support_terms.append(float(fraction) * float(capital_cost) * (p_nom - float(p_nom_min)))
 
     if not support_terms:
         print("Investment-support budget enabled, but no eligible extendable assets were found.")
@@ -4905,6 +4973,108 @@ def add_investment_support_constraint(n, snapshots) -> None:
 
     m.add_constraints(total_support <= budget, name="Investment_support_budget")
     m.objective += -total_support
+
+
+def load_fuel_limits_for_year(
+    csv_capacity: str,
+    year: int,
+    csv_fuel_limits: Optional[str] = None,
+) -> pd.DataFrame:
+    """Read optional fuel-energy budgets, allowing scenario-specific CSV files."""
+    file = (
+        _resolve_csv_path(csv_fuel_limits)
+        if csv_fuel_limits is not None
+        else _resolve_csv_path(csv_capacity).parent / "fuel_limits.csv"
+    )
+    if not file.exists():
+        return pd.DataFrame(columns=["fuel", "annual_limit_mwh_th", "generator_carriers"])
+
+    df = _read_csv(file)
+    required = ["fuel", "year", "annual_limit_mwh_th", "generator_carriers"]
+    _require_columns(df, required, file)
+    if "enabled" in df.columns:
+        df = df[df["enabled"].map(lambda x: _as_bool(x, default=False))].copy()
+    df["year"] = pd.to_numeric(df["year"], errors="raise").astype(int)
+    df = df[df["year"].eq(int(year))].copy()
+
+    if df["fuel"].duplicated().any():
+        raise ValueError(f"Repeated fuel budget for year {year}: {file}")
+    if df.empty:
+        return df
+    df["annual_limit_mwh_th"] = pd.to_numeric(
+        df["annual_limit_mwh_th"], errors="raise"
+    )
+    if (~np.isfinite(df["annual_limit_mwh_th"]) | (df["annual_limit_mwh_th"] < 0)).any():
+        raise ValueError(f"Invalid annual fuel-energy budget in {file}")
+    return df
+
+
+def annotate_fuel_limits(n, limits: pd.DataFrame) -> None:
+    """Persist budget metadata on Generator rows so NetCDF copies retain it."""
+    if limits is None or limits.empty:
+        return
+    n.generators["fuel_budget_group"] = ""
+    n.generators["fuel_budget_mwh_th"] = np.nan
+    carriers = n.generators["carrier"].map(_normalize_label)
+
+    for row in limits.itertuples(index=False):
+        fuel = _normalize_label(row.fuel)
+        selected_carriers = {
+            _normalize_label(value)
+            for value in str(row.generator_carriers).split(";")
+            if value.strip()
+        }
+        if not selected_carriers:
+            raise ValueError(f"Fuel budget '{fuel}' has no generator_carriers.")
+        if selected_carriers - set(carriers):
+            missing = sorted(selected_carriers - set(carriers))
+            logger.warning("Fuel budget %s: no active generators for %s", fuel, missing)
+        ids = n.generators.index[carriers.isin(selected_carriers)]
+        if ids.empty:
+            raise ValueError(f"Fuel budget '{fuel}' has no generators in this network.")
+        if n.generators.loc[ids, "fuel_budget_group"].ne("").any():
+            raise ValueError("A generator cannot belong to multiple fuel budgets.")
+        efficiencies = pd.to_numeric(n.generators.loc[ids, "efficiency"], errors="coerce")
+        if efficiencies.isna().any() or efficiencies.le(0).any():
+            raise ValueError(f"Fuel budget '{fuel}' requires positive efficiencies for all assets.")
+        n.generators.loc[ids, "fuel_budget_group"] = fuel
+        n.generators.loc[ids, "fuel_budget_mwh_th"] = float(row.annual_limit_mwh_th)
+
+
+def add_fuel_energy_budget_constraints(n, snapshots) -> None:
+    """Constrain annual fuel input (MWh_th), not electricity generation (MWh_e)."""
+    if "fuel_budget_group" not in n.generators.columns:
+        return
+    groups = n.generators["fuel_budget_group"].fillna("")
+    groups = groups[groups.ne("")]
+    if groups.empty:
+        return
+
+    import xarray as xr
+
+    model = n.model
+    power_var = model.variables["Generator-p"]
+    weights = n.snapshot_weightings.generators.reindex(snapshots).astype(float)
+    time_weights = xr.DataArray(
+        weights.to_numpy(), coords={"snapshot": snapshots}, dims=("snapshot",)
+    )
+
+    for fuel in sorted(groups.unique()):
+        asset_ids = groups.index[groups.eq(fuel)]
+        limits = pd.to_numeric(n.generators.loc[asset_ids, "fuel_budget_mwh_th"])
+        if limits.nunique() != 1:
+            raise ValueError(f"Inconsistent annual budget metadata for {fuel}.")
+        budget = float(limits.iloc[0])
+        total = None
+        for asset_id in asset_ids:
+            dispatch = _select_single_linopy_label(power_var, "Generator", asset_id)
+            efficiency = float(n.generators.at[asset_id, "efficiency"])
+            term = (dispatch * time_weights).sum() / efficiency
+            total = term if total is None else total + term
+        model.add_constraints(
+            total <= budget,
+            name=f"Fuel_budget_{_safe_model_name(fuel)}",
+        )
 
 
 def _calculate_investment_support_used(n) -> tuple[float, pd.DataFrame]:
@@ -4936,17 +5106,19 @@ def _calculate_investment_support_used(n) -> tuple[float, pd.DataFrame]:
             support = float(fraction) * capital_cost * new_capacity
             if new_capacity <= 1e-9 and support <= 1e-6:
                 continue
-            rows.append({
-                "component": component,
-                "asset_id": str(asset_id),
-                "carrier": str(row.get("carrier", "")),
-                "p_nom_min_mw": float(p_nom_min),
-                "p_nom_opt_mw": float(p_nom_opt),
-                "new_capacity_mw": float(new_capacity),
-                "capital_cost_usd_per_mw_year": float(capital_cost),
-                "support_fraction": float(fraction),
-                "public_support_usd_per_year": float(support),
-            })
+            rows.append(
+                {
+                    "component": component,
+                    "asset_id": str(asset_id),
+                    "carrier": str(row.get("carrier", "")),
+                    "p_nom_min_mw": float(p_nom_min),
+                    "p_nom_opt_mw": float(p_nom_opt),
+                    "new_capacity_mw": float(new_capacity),
+                    "capital_cost_usd_per_mw_year": float(capital_cost),
+                    "support_fraction": float(fraction),
+                    "public_support_usd_per_year": float(support),
+                }
+            )
 
     detail = pd.DataFrame(rows)
     total = float(detail["public_support_usd_per_year"].sum()) if not detail.empty else 0.0
@@ -4961,6 +5133,7 @@ def add_custom_constraints(n, snapshots) -> None:
     add_initial_storage_fraction_constraints(n, snapshots)
     add_final_store_inventory_fraction_constraints(n, snapshots)
     add_ptx_monthly_export_constraints(n, snapshots)
+    add_fuel_energy_budget_constraints(n, snapshots)
     add_investment_support_constraint(n, snapshots)
 
 
@@ -5080,6 +5253,7 @@ def run_case(
     csv_nodes: str = DEFAULT_PATHS["nodes_csv"],
     csv_interlinks: str = DEFAULT_PATHS["interlinks_csv"],
     csv_capacity: str = DEFAULT_PATHS["capacity_csv"],
+    csv_fuel_limits: Optional[str] = None,
     csv_storage: str = DEFAULT_PATHS["storage_csv"],
     csv_hydro_assets: str = DEFAULT_PATHS["hydro_assets_csv"],
     csv_hydro_inflows: str = DEFAULT_PATHS["hydro_inflows_csv"],
@@ -5175,9 +5349,7 @@ def run_case(
             if demand_type == "electricity":
                 continue
             if demand_type in service_loads:
-                raise ValueError(
-                    f"Duplicate demand_type after normalization in demand_profiles.csv: '{demand_type}'."
-                )
+                raise ValueError(f"Duplicate demand_type after normalization in demand_profiles.csv: '{demand_type}'.")
             missing_service_zones = [zone for zone in zone_columns if zone not in profile.columns]
             if missing_service_zones:
                 print(
@@ -5231,6 +5403,34 @@ def run_case(
     wind_cf = map_weather_year(wind_cf_hist, target_year=year)
     solar_cf = map_weather_year(solar_cf_hist, target_year=year)
 
+    # ERA5/atlite profiles use UTC, whereas the model snapshots and demand
+    # profiles use local clock time. Only VRE profiles are shifted here;
+    # demand and PyPSA snapshot indices are deliberately unchanged.
+    vre_time_zone = str(general_settings.get("vre_time_zone", "")).strip()
+    if vre_time_zone:
+        if "vre_utc_offset_hours" in general_settings:
+            raise ValueError(
+                "Specify only vre_time_zone or vre_utc_offset_hours in general.csv."
+            )
+        vre_utc_offset_hours = None
+        wind_cf = align_vre_profiles_to_timezone(wind_cf, vre_time_zone)
+        solar_cf = align_vre_profiles_to_timezone(solar_cf, vre_time_zone)
+        logger.info("Aligned ERA5/atlite VRE from UTC to %s local clock time.", vre_time_zone)
+    else:
+        vre_utc_offset_hours = _require_finite_float(
+            general_settings.get("vre_utc_offset_hours", 0),
+            "general.csv[vre_utc_offset_hours]",
+        )
+        wind_cf = align_vre_profiles_to_local_time(wind_cf, vre_utc_offset_hours)
+        solar_cf = align_vre_profiles_to_local_time(solar_cf, vre_utc_offset_hours)
+        if vre_utc_offset_hours:
+            logger.info(
+                "Aligned ERA5/atlite wind and solar to local snapshots (UTC%+g). "
+                "Calendar-year edges use a cyclic boundary for %g hours.",
+                vre_utc_offset_hours,
+                abs(vre_utc_offset_hours),
+            )
+
     network = build_case_network(
         snapshots=snapshots,
         nodes_df=nodes_df,
@@ -5259,6 +5459,7 @@ def run_case(
         slack_cost_per_mwh=effective_slack_cost,
         csv_interlinks=csv_interlinks,
         csv_capacity=csv_capacity,
+        csv_fuel_limits=csv_fuel_limits,
         csv_storage=csv_storage,
         csv_hydro_assets=csv_hydro_assets,
         csv_hydro_inflows=csv_hydro_inflows,
@@ -5278,27 +5479,16 @@ def run_case(
         )
     )
     if resolved_support_budget is not None and resolved_support_budget < 0:
-        raise ValueError(
-            "investment_support_budget_usd_per_year must be non-negative. "
-            f"Got {resolved_support_budget}."
-        )
+        raise ValueError(f"investment_support_budget_usd_per_year must be non-negative. Got {resolved_support_budget}.")
     support_fraction = float(investment_support_fraction or 0.0)
     if not 0.0 <= support_fraction <= 1.0:
-        raise ValueError(
-            f"investment_support_fraction must be between 0 and 1. Got {support_fraction}."
-        )
+        raise ValueError(f"investment_support_fraction must be between 0 and 1. Got {support_fraction}.")
 
     network._investment_support_budget_usd_per_year = resolved_support_budget
     network._investment_support_fraction = support_fraction
-    network._investment_support_generator_carriers = _normalize_support_carriers(
-        investment_support_generator_carriers
-    )
-    network._investment_support_link_carriers = _normalize_support_carriers(
-        investment_support_link_carriers
-    )
-    network._investment_support_storage_carriers = _normalize_support_carriers(
-        investment_support_storage_carriers
-    )
+    network._investment_support_generator_carriers = _normalize_support_carriers(investment_support_generator_carriers)
+    network._investment_support_link_carriers = _normalize_support_carriers(investment_support_link_carriers)
+    network._investment_support_storage_carriers = _normalize_support_carriers(investment_support_storage_carriers)
 
     used_solver = solver_name
 
@@ -5370,9 +5560,7 @@ def run_case(
 
     objective_value = float(network.objective) if network.objective is not None else np.nan
     investment_support_used, investment_support_detail = _calculate_investment_support_used(network)
-    investment_support_budget = (
-        float(resolved_support_budget) if resolved_support_budget is not None else 0.0
-    )
+    investment_support_budget = float(resolved_support_budget) if resolved_support_budget is not None else 0.0
     investment_support_unused = max(0.0, investment_support_budget - investment_support_used)
 
     valid_conditions = {"optimal", "suboptimal"}
@@ -5421,6 +5609,8 @@ def run_case(
         "enable_ptx": enable_ptx,
         "slack_cost_per_mwh": effective_slack_cost,
         "vre_profile_method": vre_profile_method,
+        "vre_utc_offset_hours": vre_utc_offset_hours,
+        "vre_time_zone": vre_time_zone or None,
         "demand_summary": demand_summary,
         "demand_by_type": demand_by_type,
     }
@@ -5458,6 +5648,7 @@ def run_case_multiple_years(
     csv_nodes: str = DEFAULT_PATHS["nodes_csv"],
     csv_interlinks: str = DEFAULT_PATHS["interlinks_csv"],
     csv_capacity: str = DEFAULT_PATHS["capacity_csv"],
+    csv_fuel_limits: Optional[str] = None,
     csv_storage: str = DEFAULT_PATHS["storage_csv"],
     csv_hydro_assets: str = DEFAULT_PATHS["hydro_assets_csv"],
     csv_hydro_inflows: str = DEFAULT_PATHS["hydro_inflows_csv"],
@@ -5544,6 +5735,7 @@ def run_case_multiple_years(
             csv_nodes=csv_nodes,
             csv_interlinks=csv_interlinks,
             csv_capacity=csv_capacity,
+        csv_fuel_limits=csv_fuel_limits,
             csv_storage=csv_storage,
             csv_hydro_assets=csv_hydro_assets,
             csv_hydro_inflows=csv_hydro_inflows,

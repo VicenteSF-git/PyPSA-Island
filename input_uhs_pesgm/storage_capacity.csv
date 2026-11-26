@@ -1,0 +1,2 @@
+asset_id,storage,zone,technology,cost_key,installed_power_mw,max_hours,available_from_year,earliest_commissioning_year,fixed_commissioning_year,commissioning_type,enabled
+inert_bess_placeholder,bess_4h,taranaki,bess,bess_4h,0,4,2050,2050,2050,fixed,TRUE

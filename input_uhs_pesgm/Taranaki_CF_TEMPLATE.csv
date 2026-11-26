@@ -1,0 +1,2 @@
+wind_cf,solar_cf
+# Provide 8760 hourly CF rows ordered Jan 1–Dec 31, 2050; no real resource profiles were uploaded.

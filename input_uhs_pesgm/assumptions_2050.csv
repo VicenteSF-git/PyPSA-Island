@@ -1,0 +1,106 @@
+parameter,value,unit_note
+wacc,0.07,fraction/year
+wind_capex,1286.4669,EUR/kW
+tank_capex,16.974,EUR/kWh H2 working
+hb_capex,1155.6369,EUR/kW product LHV
+year,2050.0,model year
+wind_fom,0.011775,fraction/year
+tank_life,20.0,years
+hb_fom,0.03,fraction/year
+hours,8760.0,See Excel screening v0.6 for definition
+wind_life,30.0,years
+tank_fom,0.02,fraction/year
+hb_life,30.0,years
+delivered_frac,0.9,See Excel screening v0.6 for definition
+solar_capex,367.8671,EUR/kW
+tank_cycles,365.0,FEC/year
+hb_h2,1.1484,MWh H2/MWh product
+power_twh,1.0,TWh_e/year
+solar_fom,0.025292,fraction/year
+tank_inject_days,0.8333333333333334,years
+hb_el,0.2473,MWh_e/MWh product
+ammonia_kt,636.0,kt NH3/year
+solar_life,40.0,years
+tank_withdraw_days,0.16666666666666666,years
+hb_n2,0.1597,t N2/MWh NH3
+methanol_kt,360.0,kt MeOH/year
+ely_capex,1257.3346,EUR/kW
+dgr_capex,0.5,EUR/kWh H2 working
+asu_capex,649585.8482,See Excel screening v0.6 for definition
+product_days,30.416666666666668,years
+ely_fom,0.04,fraction/year
+dgr_site_fixed,40.0,million EUR per reference site
+asu_fom,0.03,fraction/year
+ptx_h2_days,30.0,years
+ely_life,25.0,years
+dgr_site_kt,25.0,kt H2 working/reference site
+asu_life,30.0,years
+seasonal_full_load_days_y,90.0,days/year
+ely_eta,0.6994,fraction
+dgr_life,40.0,years
+asu_el,0.25,MWh_e/t N2
+buffer_power_days_DISABLED,0.0,See Excel screening v0.6 for definition
+fc_capex,1068.6425,EUR/kW
+dgr_fom,0.02,fraction/year
+meoh_capex,1091.7961,EUR/kW product LHV
+buffer_ptx_days_DISABLED,0.0,See Excel screening v0.6 for definition
+fc_fom,0.05,fraction/year
+dgr_cushion,0.6,fraction of total H2
+meoh_fom,0.03,fraction/year
+ptx_stored_share,0.15,See Excel screening v0.6 for definition
+fc_life,10.0,years
+dgr_cycles,2.0,FEC/year
+meoh_life,30.0,years
+wind_cf,0.45,fraction (screening only)
+fc_eta,0.5,fraction
+dgr_inject_days,225.0,years
+meoh_h2,1.138,MWh H2/MWh product
+solar_cf,0.18,fraction (screening only)
+comp_capex,110.2557,EUR/kW H2 compressor
+dgr_withdraw_days,120.0,years
+meoh_el,0.271,MWh_e/MWh product
+wind_share,1.0,See Excel screening v0.6 for definition
+comp_fom,0.04,fraction/year
+sc_capex,1.6045,EUR/kWh H2 working
+meoh_co2,1.375,t CO2/t MeOH
+ely_cf,0.65,See Excel screening v0.6 for definition
+comp_life,15.0,years
+sc_fixed,0.0,See Excel screening v0.6 for definition
+dac_capex,5029338.4046,See Excel screening v0.6 for definition
+synthesis_cf,0.9,See Excel screening v0.6 for definition
+comp_electric,0.05,MWh_e per MWh_H2 injected
+sc_cavern_kt,10.0,See Excel screening v0.6 for definition
+dac_fom,0.0495,fraction/year
+h2_lhv,33.3333,MWh/t H2
+wind_vom,1.623,See Excel screening v0.6 for definition
+sc_life,100.0,years
+dac_life,20.0,years
+nh3_lhv,5.1667,MWh/t NH3
+solar_vom,0.0134,See Excel screening v0.6 for definition
+sc_fom,0.0,fraction/year
+dac_el,0.4,MWh_e/t CO2
+meoh_lhv,5.54,MWh/t MeOH
+sc_cushion,0.25,fraction of total H2
+dac_heat,1.6,MWh_heat/t CO2
+tank_min_fill,0.06,See Excel screening v0.6 for definition
+sc_cycles,10.0,FEC/year
+dac_COP,3.0,heat pump COP
+sc_inject_days,30.0,years
+tank_seasonal_event_days,90.0,years
+sc_withdraw_days,30.0,years
+dgr_seasonal_event_days,90.0,years
+cushion_cost,2.5,EUR/kg H2
+sc_seasonal_event_days,90.0,years
+nh3_tank_capex,211.8256,EUR/kWh product LHV
+nh3_tank_life,20.0,years
+nh3_tank_fom,0.02,fraction/year
+meoh_tank_capex,150.0,EUR/t product
+meoh_tank_life,25.0,years
+meoh_tank_fom,0.02,fraction/year
+sc_withdraw_capex,100.0,EUR/kW H2 withdrawal
+daily_peak_hours,4.0,hours/day
+sc_inject_capex,50.0,EUR/kW H2 injection
+daily_peak_days_year,365.0,days/year
+sc_power_life,30.0,years
+sc_power_fom,0.02,fraction/year
+sc_min_working_kt,0.75,See Excel screening v0.6 for definition

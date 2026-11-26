@@ -1,4 +1,4 @@
-name: pypsa-isolated
+name: pypsa-island
 channels:
   - conda-forge
   - gurobi

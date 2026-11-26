@@ -1,0 +1,3 @@
+asset_id,generator,zone,technology,cost_key,installed_capacity,available_from_year,earliest_commissioning_year,commissioning_type,enabled
+wind_taranaki,wind_new,taranaki,wind,wind_new,0,2050,2050,flexible,TRUE
+solar_taranaki,solar_new,taranaki,solar,solar_utility_new,0,2050,2050,flexible,TRUE

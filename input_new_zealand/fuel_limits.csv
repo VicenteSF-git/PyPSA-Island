@@ -1,0 +1,2 @@
+fuel,year,annual_limit_mwh_th,generator_carriers,enabled,source,notes
+natural_gas,2025,7500000,ccgt;ocgt;gas_peaker;gas_cogeneration,True,Diagnostic hypothesis (27 PJ_th); not a verified observed NZ gas budget,Applied only in 2025; adjust or disable after validating gas supply (MWh_th).

@@ -1,0 +1,16 @@
+cost_key,technology,year,base_year,capital_cost,efficiency,marginal_cost,standing_loss,source,notes
+wind_new,wind_new,2050,2050,118819.888454588,1.0,1.623,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+solar_utility_new,solar_utility_new,2050,2050,36897.489084132,1.0,0.0134,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+bess_4h,bess_4h,2050,2050,0,1.0,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+electrolyzer,electrolyzer,2050,2050,158185.916345439,0.6994,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+h2_fuel_cell,h2_fuel_cell,2050,2050,102791.387729164,0.5,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+h2_tank,h2_tank,2050,2050,1941.705521566,1.0,0,0,Screening Excel v0.6,Annualized units: EUR/MWh_H2 working/year
+uhs_storage,uhs_storage,2050,2050,59.940020538,1.0,0,0,Screening Excel v0.6,Annualized units: EUR/MWh_H2 working/year including cushion carrying
+uhs_injection,uhs_injection,2050,2050,16515.711202647,1.0,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+uhs_withdrawal,uhs_withdrawal,2050,2050,0,1.0,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+asu,asu,2050,2050,287341.45089661,4.0,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+dac,dac,2050,2050,775378.09027587,1.0714285714285714,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+ammonia_synthesis,ammonia_synthesis,2050,2050,111283.288519444,0.16853634483242658,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+methanol_synthesis,methanol_synthesis,2050,2050,106096.488634848,0.15861635778774597,0,0,Screening Excel v0.6,Annualized units: EUR/MW/year
+ammonia_storage,ammonia_storage,2050,2050,125.196116723,1.0,0,0,Screening Excel v0.6,Annualized units: EUR/ton_NH3/year
+methanol_storage,methanol_storage,2050,2050,15.871577583,1.0,0,0,Screening Excel v0.6,Annualized units: EUR/ton_MeOH/year
